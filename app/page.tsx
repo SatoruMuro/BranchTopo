@@ -93,6 +93,24 @@ export default function Home() {
     });
   };
 
+  const updateActiveRoot = (rootNodeId: string) => {
+    setProject((current) => {
+      const next: BranchTopoProject = {
+        ...current,
+        [activeGraph]: { ...current[activeGraph], root_node_id: rootNodeId },
+      };
+      if (activeGraph === "standard_graph") {
+        const variantRoot = current.variant_graph.nodes.find((node) =>
+          node.origin_ref_ids.includes(rootNodeId),
+        );
+        if (variantRoot) {
+          next.variant_graph = { ...current.variant_graph, root_node_id: variantRoot.id };
+        }
+      }
+      return withUpdatedScore(next, syncScoreEntries(next));
+    });
+  };
+
   const showNotice = (message: string) => {
     setNotice(message);
     window.setTimeout(() => setNotice("Local project"), 2400);
@@ -250,6 +268,18 @@ export default function Home() {
         <aside className="inspector">
           <div className="inspector-heading"><span>CANVAS</span><strong>{activeModel.name}</strong></div>
           <div className="inspector-section">
+            <label className="root-field" htmlFor="root-node">
+              <span>Root node</span>
+              <select
+                id="root-node"
+                value={activeModel.root_node_id}
+                disabled={!activeModel.nodes.length}
+                onChange={(event) => updateActiveRoot(event.target.value)}
+              >
+                <option value="">Not selected</option>
+                {activeModel.nodes.map((node) => <option value={node.id} key={node.id}>{node.label}</option>)}
+              </select>
+            </label>
             <label className="field-label" htmlFor="background-opacity">Background opacity <span>{Math.round(activeModel.background.opacity * 100)}%</span></label>
             <input
               id="background-opacity"
@@ -272,6 +302,7 @@ export default function Home() {
             <div><span>Background</span><strong title={activeModel.background.image_name}>{activeModel.background.image_name || "None"}</strong></div>
             <div><span>Nodes</span><strong>{activeModel.nodes.length}</strong></div>
             <div><span>Edges</span><strong>{activeModel.edges.length}</strong></div>
+            <div><span>Root</span><strong>{activeModel.nodes.find((node) => node.id === activeModel.root_node_id)?.label || "Not selected"}</strong></div>
           </div>
           <div className="inspector-spacer" />
           <div className="score-summary"><span>NODE-SHIFT TOTAL</span><strong>{total}</strong><button type="button" onClick={openScoring}>Open table</button></div>

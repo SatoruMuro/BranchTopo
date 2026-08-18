@@ -11,13 +11,14 @@ All graph editing, scoring, and exports run in the browser. The app does not upl
 - Add, move, rename, and delete nodes.
 - Add, rename, and delete edges.
 - Copy Standard Pattern to Variant Pattern while preserving origin references.
-- Manual node mapping and node-shift values from 0 to 5.
+- Rooted-tree validation and automatic node-shift calculation from graph connectivity.
+- Automatic node mapping for copied nodes, with manual correction when needed.
 - IndexedDB autosave on the current device.
 - JSON project import/export.
 - CSV scoring export.
 - PNG export for both canvases.
 
-BranchTopo v0.1 does not perform automatic image analysis, automatic graph interpretation, automatic classification, or automatic scoring. It does not calculate edge loss, edge gain, edge loss change, node fusion, or branch-order change scores.
+BranchTopo does not extract or interpret graphs from images and does not perform automatic anatomical classification. It automatically calculates only the node-shift score after the user constructs both graphs and selects their corresponding root nodes. It does not calculate edge loss, edge gain, edge loss change, node fusion, or branch-order change scores.
 
 ## Requirements
 
@@ -40,11 +41,14 @@ Open `http://localhost:3000`.
 2. Load an optional reference image with Background.
 3. Adjust opacity and lock the background in the canvas inspector.
 4. Add and rename standard nodes, then connect them with edges.
-5. Load the variant reference image on the Variant Pattern canvas.
-6. Copy the standard graph to the variant and edit it over the variant image.
-7. Open Scoring and assign each standard node to a variant node.
-8. Enter node-shift values and optional notes.
-9. Save project JSON and export CSV or PNG files.
+5. Select the standard root node in the canvas inspector.
+6. Load the variant reference image on the Variant Pattern canvas.
+7. Copy the standard graph to the variant and edit it over the variant image. The corresponding variant root is copied automatically.
+8. Open Scoring. Copied nodes are mapped automatically; correct any mapping that is not one-to-one.
+9. Review the automatically calculated attachment shift for each node and add optional notes.
+10. Save project JSON and export CSV or PNG files.
+
+Automatic scoring requires each graph to be a connected tree without cycles. For a mapped node, BranchTopo compares its upstream attachment in the standard and variant trees. The node-shift value is the number of edges between those attachment points in the standard tree. Unmapped nodes and ambiguous or invalid graphs are reported instead of being guessed.
 
 Use the mouse wheel to zoom and the middle mouse button to pan while the background is unlocked. Locking a visible background freezes the canvas view so those gestures cannot move the tracing reference. Nodes and labels keep a readable on-screen size while zooming.
 

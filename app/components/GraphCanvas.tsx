@@ -380,6 +380,7 @@ function GraphCanvasComponent(
             })}
             {graph.nodes.map((node) => {
               const selected = selectedId === node.id || pendingSource === node.id;
+              const rootNode = graph.root_node_id === node.id;
               return (
                 <g
                   key={node.id}
@@ -387,6 +388,16 @@ function GraphCanvasComponent(
                   className="graph-node"
                   onPointerDown={(event) => nodeAction(node, event)}
                 >
+                  {rootNode && (
+                    <circle
+                      r={15 / view.scale}
+                      fill="none"
+                      stroke="#d97706"
+                      strokeWidth={2 / view.scale}
+                      strokeDasharray={`${4 / view.scale} ${3 / view.scale}`}
+                      pointerEvents="none"
+                    />
+                  )}
                   <circle
                     r={10 / view.scale}
                     fill={selected ? "#ffb000" : "#00b8d9"}

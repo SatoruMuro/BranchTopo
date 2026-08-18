@@ -4,6 +4,7 @@ import type {
   GraphModel,
   NodeShiftEntry,
 } from "../types";
+import { calculateNodeShift } from "./scoring";
 
 const emptyBackground = (): BackgroundImageModel => ({
   path: "",
@@ -19,6 +20,7 @@ const emptyBackground = (): BackgroundImageModel => ({
 
 const emptyGraph = (name: string): GraphModel => ({
   name,
+  root_node_id: "",
   nodes: [],
   edges: [],
   background: emptyBackground(),
@@ -27,8 +29,8 @@ const emptyGraph = (name: string): GraphModel => ({
 export function createProject(): BranchTopoProject {
   return {
     app_name: "BranchTopo",
-    app_version: "0.1.0-web",
-    schema_version: "0.1",
+    app_version: "0.1.1-web",
+    schema_version: "0.2",
     standard_graph: emptyGraph("Standard Pattern"),
     variant_graph: emptyGraph("Variant Pattern"),
     score: {
@@ -61,6 +63,8 @@ export function syncScoreEntries(project: BranchTopoProject): NodeShiftEntry[] {
       variant_label: selected?.label || "",
       shift_value: Math.max(0, Math.min(5, existing?.shift_value ?? 0)),
       notes: existing?.notes ?? "",
+      calculation_status: existing?.calculation_status ?? "unavailable",
+      calculation_message: existing?.calculation_message ?? "Select root nodes to calculate.",
     };
   });
 }
@@ -69,8 +73,15 @@ export function withUpdatedScore(
   project: BranchTopoProject,
   entries = syncScoreEntries(project),
 ): BranchTopoProject {
-  const total = entries.reduce((sum, entry) => sum + entry.shift_value, 0);
-  return { ...project, score: { ...project.score, node_shift_entries: entries, total_node_shift: total } };
+  const calculation = calculateNodeShift(project, entries);
+  return {
+    ...project,
+    score: {
+      ...project.score,
+      node_shift_entries: calculation.entries,
+      total_node_shift: calculation.total,
+    },
+  };
 }
 
 export function copyStandardToVariant(project: BranchTopoProject): BranchTopoProject {
@@ -91,6 +102,9 @@ export function copyStandardToVariant(project: BranchTopoProject): BranchTopoPro
     ...project,
     variant_graph: {
       name: "Variant Pattern",
+      root_node_id: project.standard_graph.root_node_id
+        ? nodeIds.get(project.standard_graph.root_node_id) || ""
+        : "",
       nodes,
       edges,
       background: project.variant_graph.background,
@@ -113,16 +127,21 @@ export function projectForDownload(project: BranchTopoProject): BranchTopoProjec
   };
 }
 
-export function normalizeProject(value: unknown): BranchTopoProject {
+export function normalizeProject(value: unknown, preserveBackgroundData = false): BranchTopoProject {
   if (!value || typeof value !== "object") throw new Error("Invalid project file");
   const incoming = value as Partial<BranchTopoProject>;
   if (!incoming.standard_graph || !incoming.variant_graph) throw new Error("Graph data is missing");
   const fallback = createProject();
   const normalizeGraph = (graph: Partial<GraphModel>, fallbackGraph: GraphModel): GraphModel => ({
     name: String(graph.name || fallbackGraph.name),
+    root_node_id: String(graph.root_node_id || ""),
     nodes: Array.isArray(graph.nodes) ? graph.nodes : [],
     edges: Array.isArray(graph.edges) ? graph.edges : [],
-    background: { ...fallbackGraph.background, ...(graph.background || {}), data_url: undefined },
+    background: {
+      ...fallbackGraph.background,
+      ...(graph.background || {}),
+      data_url: preserveBackgroundData ? graph.background?.data_url : undefined,
+    },
   });
   const normalized: BranchTopoProject = {
     ...fallback,

@@ -34,10 +34,13 @@ export interface EdgeModel {
 
 export interface GraphModel {
   name: string;
+  root_node_id: string;
   nodes: NodeModel[];
   edges: EdgeModel[];
   background: BackgroundImageModel;
 }
+
+export type NodeShiftCalculationStatus = "calculated" | "unmapped" | "unavailable";
 
 export interface NodeShiftEntry {
   standard_node_id: string;
@@ -46,6 +49,8 @@ export interface NodeShiftEntry {
   variant_label: string;
   shift_value: number;
   notes: string;
+  calculation_status: NodeShiftCalculationStatus;
+  calculation_message: string;
 }
 
 export interface ScoreModel {

@@ -1,4 +1,5 @@
 import type { BranchTopoProject } from "../types";
+import { normalizeProject } from "./project";
 
 const DATABASE = "branchtopo-local";
 const STORE = "projects";
@@ -20,7 +21,7 @@ export async function loadLocalProject(): Promise<BranchTopoProject | null> {
   return new Promise((resolve, reject) => {
     const transaction = database.transaction(STORE, "readonly");
     const request = transaction.objectStore(STORE).get(CURRENT);
-    request.onsuccess = () => resolve((request.result as BranchTopoProject | undefined) ?? null);
+    request.onsuccess = () => resolve(request.result ? normalizeProject(request.result, true) : null);
     request.onerror = () => reject(request.error);
     transaction.oncomplete = () => database.close();
   });
