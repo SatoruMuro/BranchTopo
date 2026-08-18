@@ -48,7 +48,7 @@ Open `http://localhost:3000`.
 9. Review the automatically calculated attachment shift for each node and add optional notes.
 10. Save project JSON and export CSV or PNG files.
 
-Automatic scoring requires each graph to be a connected tree without cycles. For a mapped node, BranchTopo compares its upstream attachment in the standard and variant trees. The node-shift value is the number of edges between those attachment points in the standard tree. Unmapped nodes and ambiguous or invalid graphs are reported instead of being guessed.
+Automatic scoring requires each graph to be a connected tree without cycles. BranchTopo compares the ancestor order of corresponding non-terminal branching nodes. A node receives one step for each branching node that it crosses in the distal direction; passive parent changes in the crossed nodes and downstream nodes are not counted again. Unmapped nodes and ambiguous or invalid graphs are reported instead of being guessed.
 
 Use the mouse wheel to zoom and the middle mouse button to pan while the background is unlocked. Locking a visible background freezes the canvas view so those gestures cannot move the tracing reference. Nodes and labels keep a readable on-screen size while zooming.
 

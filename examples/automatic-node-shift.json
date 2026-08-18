@@ -6,17 +6,21 @@
     "name": "Standard Pattern",
     "root_node_id": "standard_root",
     "nodes": [
-      { "id": "standard_root", "label": "Root", "x": 0, "y": -160, "node_type": "root", "origin_ref_ids": [] },
-      { "id": "standard_a", "label": "A", "x": 0, "y": -60, "node_type": "branch_node", "origin_ref_ids": [] },
-      { "id": "standard_b", "label": "B", "x": 0, "y": 40, "node_type": "branch_node", "origin_ref_ids": [] },
-      { "id": "standard_c", "label": "C", "x": 0, "y": 140, "node_type": "branch_node", "origin_ref_ids": [] },
-      { "id": "standard_x", "label": "X", "x": 130, "y": -60, "node_type": "terminal", "origin_ref_ids": [] }
+      { "id": "standard_root", "label": "Root", "x": 0, "y": -180, "node_type": "root", "origin_ref_ids": [] },
+      { "id": "standard_a", "label": "A", "x": 0, "y": -80, "node_type": "branch_node", "origin_ref_ids": [] },
+      { "id": "standard_b", "label": "B", "x": 0, "y": 20, "node_type": "branch_node", "origin_ref_ids": [] },
+      { "id": "standard_c", "label": "C", "x": 0, "y": 120, "node_type": "branch_node", "origin_ref_ids": [] },
+      { "id": "standard_la", "label": "LA", "x": 120, "y": -80, "node_type": "terminal", "origin_ref_ids": [] },
+      { "id": "standard_lb", "label": "LB", "x": 120, "y": 20, "node_type": "terminal", "origin_ref_ids": [] },
+      { "id": "standard_lc", "label": "LC", "x": 120, "y": 120, "node_type": "terminal", "origin_ref_ids": [] }
     ],
     "edges": [
-      { "id": "standard_edge_1", "source": "standard_root", "target": "standard_a", "label": "", "edge_type": "branch", "origin_ref_ids": [] },
-      { "id": "standard_edge_2", "source": "standard_a", "target": "standard_b", "label": "", "edge_type": "branch", "origin_ref_ids": [] },
-      { "id": "standard_edge_3", "source": "standard_b", "target": "standard_c", "label": "", "edge_type": "branch", "origin_ref_ids": [] },
-      { "id": "standard_edge_4", "source": "standard_a", "target": "standard_x", "label": "", "edge_type": "branch", "origin_ref_ids": [] }
+      { "id": "standard_chain_1", "source": "standard_root", "target": "standard_a", "label": "", "edge_type": "branch", "origin_ref_ids": [] },
+      { "id": "standard_chain_2", "source": "standard_a", "target": "standard_b", "label": "", "edge_type": "branch", "origin_ref_ids": [] },
+      { "id": "standard_chain_3", "source": "standard_b", "target": "standard_c", "label": "", "edge_type": "branch", "origin_ref_ids": [] },
+      { "id": "standard_leaf_a", "source": "standard_a", "target": "standard_la", "label": "", "edge_type": "branch", "origin_ref_ids": [] },
+      { "id": "standard_leaf_b", "source": "standard_b", "target": "standard_lb", "label": "", "edge_type": "branch", "origin_ref_ids": [] },
+      { "id": "standard_leaf_c", "source": "standard_c", "target": "standard_lc", "label": "", "edge_type": "branch", "origin_ref_ids": [] }
     ],
     "background": { "path": "", "image_name": "", "opacity": 0.55, "locked": true, "visible": true, "x": 0, "y": 0, "width": 0, "height": 0 }
   },
@@ -24,23 +28,23 @@
     "name": "Variant Pattern",
     "root_node_id": "variant_root",
     "nodes": [
-      { "id": "variant_root", "label": "Root", "x": 0, "y": -160, "node_type": "root", "origin_ref_ids": ["standard_root"] },
-      { "id": "variant_a", "label": "A", "x": 0, "y": -60, "node_type": "branch_node", "origin_ref_ids": ["standard_a"] },
-      { "id": "variant_b", "label": "B", "x": 0, "y": 40, "node_type": "branch_node", "origin_ref_ids": ["standard_b"] },
-      { "id": "variant_c", "label": "C", "x": 0, "y": 140, "node_type": "branch_node", "origin_ref_ids": ["standard_c"] },
-      { "id": "variant_x", "label": "X", "x": 130, "y": 140, "node_type": "terminal", "origin_ref_ids": ["standard_x"] }
+      { "id": "variant_root", "label": "Root", "x": 0, "y": -180, "node_type": "root", "origin_ref_ids": ["standard_root"] },
+      { "id": "variant_a", "label": "A", "x": 0, "y": 20, "node_type": "branch_node", "origin_ref_ids": ["standard_a"] },
+      { "id": "variant_b", "label": "B", "x": 0, "y": -80, "node_type": "branch_node", "origin_ref_ids": ["standard_b"] },
+      { "id": "variant_c", "label": "C", "x": 0, "y": 120, "node_type": "branch_node", "origin_ref_ids": ["standard_c"] },
+      { "id": "variant_la", "label": "LA", "x": 120, "y": 20, "node_type": "terminal", "origin_ref_ids": ["standard_la"] },
+      { "id": "variant_lb", "label": "LB", "x": 120, "y": -80, "node_type": "terminal", "origin_ref_ids": ["standard_lb"] },
+      { "id": "variant_lc", "label": "LC", "x": 120, "y": 120, "node_type": "terminal", "origin_ref_ids": ["standard_lc"] }
     ],
     "edges": [
-      { "id": "variant_edge_1", "source": "variant_root", "target": "variant_a", "label": "", "edge_type": "branch", "origin_ref_ids": ["standard_edge_1"] },
-      { "id": "variant_edge_2", "source": "variant_a", "target": "variant_b", "label": "", "edge_type": "branch", "origin_ref_ids": ["standard_edge_2"] },
-      { "id": "variant_edge_3", "source": "variant_b", "target": "variant_c", "label": "", "edge_type": "branch", "origin_ref_ids": ["standard_edge_3"] },
-      { "id": "variant_edge_4", "source": "variant_c", "target": "variant_x", "label": "", "edge_type": "branch", "origin_ref_ids": ["standard_edge_4"] }
+      { "id": "variant_chain_1", "source": "variant_root", "target": "variant_b", "label": "", "edge_type": "branch", "origin_ref_ids": ["standard_chain_1"] },
+      { "id": "variant_chain_2", "source": "variant_b", "target": "variant_a", "label": "", "edge_type": "branch", "origin_ref_ids": ["standard_chain_2"] },
+      { "id": "variant_chain_3", "source": "variant_a", "target": "variant_c", "label": "", "edge_type": "branch", "origin_ref_ids": ["standard_chain_3"] },
+      { "id": "variant_leaf_a", "source": "variant_a", "target": "variant_la", "label": "", "edge_type": "branch", "origin_ref_ids": ["standard_leaf_a"] },
+      { "id": "variant_leaf_b", "source": "variant_b", "target": "variant_lb", "label": "", "edge_type": "branch", "origin_ref_ids": ["standard_leaf_b"] },
+      { "id": "variant_leaf_c", "source": "variant_c", "target": "variant_lc", "label": "", "edge_type": "branch", "origin_ref_ids": ["standard_leaf_c"] }
     ],
     "background": { "path": "", "image_name": "", "opacity": 0.55, "locked": true, "visible": true, "x": 0, "y": 0, "width": 0, "height": 0 }
   },
-  "score": {
-    "node_shift_entries": [],
-    "total_node_shift": 0,
-    "future_score_components": {}
-  }
+  "score": { "node_shift_entries": [], "total_node_shift": 0, "future_score_components": {} }
 }

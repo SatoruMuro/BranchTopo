@@ -5,7 +5,6 @@ import type {
 } from "../types";
 
 interface RootedTree {
-  adjacency: Map<string, string[]>;
   parent: Map<string, string | null>;
 }
 
@@ -54,23 +53,25 @@ function buildRootedTree(graph: GraphModel): { tree: RootedTree | null; error: s
   if (parent.size !== graph.nodes.length) {
     return { tree: null, error: `${graph.name} must be connected.` };
   }
-  return { tree: { adjacency, parent }, error: "" };
+  return { tree: { parent }, error: "" };
 }
 
-function distance(adjacency: Map<string, string[]>, source: string, target: string): number | null {
-  if (source === target) return 0;
-  const visited = new Set([source]);
-  const queue: Array<{ id: string; distance: number }> = [{ id: source, distance: 0 }];
-  for (let index = 0; index < queue.length; index += 1) {
-    const current = queue[index];
-    for (const neighbor of adjacency.get(current.id) || []) {
-      if (visited.has(neighbor)) continue;
-      if (neighbor === target) return current.distance + 1;
-      visited.add(neighbor);
-      queue.push({ id: neighbor, distance: current.distance + 1 });
-    }
+function childCounts(tree: RootedTree): Map<string, number> {
+  const counts = new Map<string, number>();
+  for (const [nodeId, parentId] of tree.parent) {
+    if (!counts.has(nodeId)) counts.set(nodeId, 0);
+    if (parentId) counts.set(parentId, (counts.get(parentId) || 0) + 1);
   }
-  return null;
+  return counts;
+}
+
+function isAncestor(tree: RootedTree, ancestorId: string, nodeId: string): boolean {
+  let current = tree.parent.get(nodeId) ?? null;
+  while (current) {
+    if (current === ancestorId) return true;
+    current = tree.parent.get(current) ?? null;
+  }
+  return false;
 }
 
 function unavailable(entries: NodeShiftEntry[], message: string): NodeShiftCalculation {
@@ -106,10 +107,10 @@ export function calculateNodeShift(
       mappingCounts.set(entry.variant_node_id, (mappingCounts.get(entry.variant_node_id) || 0) + 1);
     }
   }
-  const variantToStandard = new Map<string, string>();
+  const standardToVariant = new Map<string, string>();
   for (const entry of entries) {
     if (mappingCounts.get(entry.variant_node_id) === 1) {
-      variantToStandard.set(entry.variant_node_id, entry.standard_node_id);
+      standardToVariant.set(entry.standard_node_id, entry.variant_node_id);
     }
   }
 
@@ -121,6 +122,21 @@ export function calculateNodeShift(
   }
 
   const standardNodes = new Map(project.standard_graph.nodes.map((node) => [node.id, node]));
+  const standardChildCounts = childCounts(standardTree);
+  const variantChildCounts = childCounts(variantTree);
+  const branchingNodeIds = project.standard_graph.nodes
+    .map((node) => node.id)
+    .filter((nodeId) =>
+      nodeId !== project.standard_graph.root_node_id && (standardChildCounts.get(nodeId) || 0) > 0,
+    );
+  const incompleteBranchMapping = branchingNodeIds.some((nodeId) => {
+    const variantId = standardToVariant.get(nodeId);
+    return !variantId || (variantChildCounts.get(variantId) || 0) === 0;
+  });
+  if (incompleteBranchMapping) {
+    return unavailable(entries, "Every branching node must have a one-to-one branching-node match.");
+  }
+
   const nextEntries = entries.map((entry): NodeShiftEntry => {
     if (!variantIds.has(entry.variant_node_id)) {
       return {
@@ -146,40 +162,32 @@ export function calculateNodeShift(
         calculation_message: "Root node.",
       };
     }
-
-    const standardParent = standardTree.parent.get(entry.standard_node_id);
-    let variantAncestor = variantTree.parent.get(entry.variant_node_id) ?? null;
-    while (variantAncestor && !variantToStandard.has(variantAncestor)) {
-      variantAncestor = variantTree.parent.get(variantAncestor) ?? null;
-    }
-    const variantParentStandard = variantAncestor ? variantToStandard.get(variantAncestor) : undefined;
-    if (!standardParent || !variantParentStandard) {
+    if (!branchingNodeIds.includes(entry.standard_node_id)) {
       return {
         ...entry,
         shift_value: 0,
-        calculation_status: "unavailable",
-        calculation_message: "A corresponding upstream attachment could not be identified.",
+        calculation_status: "calculated",
+        calculation_message: "Terminal node; not scored.",
       };
     }
 
-    const shift = distance(standardTree.adjacency, standardParent, variantParentStandard);
-    if (shift === null) {
-      return {
-        ...entry,
-        shift_value: 0,
-        calculation_status: "unavailable",
-        calculation_message: "The attachment points are not connected in the standard graph.",
-      };
-    }
-    const standardParentLabel = standardNodes.get(standardParent)?.label || standardParent;
-    const variantParentLabel = standardNodes.get(variantParentStandard)?.label || variantParentStandard;
+    const crossedNodes = branchingNodeIds.filter((otherStandardId) => {
+      if (otherStandardId === entry.standard_node_id) return false;
+      const otherVariantId = standardToVariant.get(otherStandardId);
+      if (!otherVariantId) return false;
+      const wasAncestor = isAncestor(standardTree, otherStandardId, entry.standard_node_id);
+      const isNowAncestor = isAncestor(variantTree, otherVariantId, entry.variant_node_id);
+      return !wasAncestor && isNowAncestor;
+    });
+    const shift = crossedNodes.length;
+    const crossedLabels = crossedNodes.map((nodeId) => standardNodes.get(nodeId)?.label || nodeId);
     return {
       ...entry,
       shift_value: shift,
       calculation_status: "calculated",
       calculation_message: shift === 0
-        ? "Attachment unchanged."
-        : `${standardParentLabel} to ${variantParentLabel}: ${shift} step${shift === 1 ? "" : "s"}.`,
+        ? "Branch order unchanged."
+        : `Crossed ${crossedLabels.join(", ")}: ${shift} step${shift === 1 ? "" : "s"}.`,
     };
   });
   const total = nextEntries.reduce((sum, entry) =>

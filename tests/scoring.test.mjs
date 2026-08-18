@@ -24,17 +24,27 @@ function edge(id, source, target) {
   return { id, source, target, label: "", edge_type: "branch", origin_ref_ids: [] };
 }
 
-function makeProject(variantAttachment = "vB", roots = ["R", "vR"]) {
-  const standardNodes = [node("R"), node("A"), node("B"), node("C"), node("X")];
+function makeProject(variantOrder = ["A", "B", "C", "D"], roots = ["R", "vR"]) {
+  const branchIds = ["A", "B", "C", "D"];
+  const standardNodes = [node("R"), ...branchIds.flatMap((id) => [node(id), node(`L${id}`)])];
   const variantNodes = standardNodes.map((item) => node(`v${item.id}`, [item.id]));
+  const chainEdges = (prefix, root, order) => [
+    edge(`${prefix}chain0`, root, `${prefix}${order[0]}`),
+    ...order.slice(1).map((id, index) =>
+      edge(`${prefix}chain${index + 1}`, `${prefix}${order[index]}`, `${prefix}${id}`),
+    ),
+  ];
+  const leafEdges = (prefix) => branchIds.map((id) =>
+    edge(`${prefix}leaf${id}`, `${prefix}${id}`, `${prefix}L${id}`),
+  );
   const standard = {
     name: "Standard Pattern", root_node_id: roots[0], nodes: standardNodes,
-    edges: [edge("s1", "R", "A"), edge("s2", "A", "B"), edge("s3", "B", "C"), edge("s4", "A", "X")],
+    edges: [...chainEdges("", "R", branchIds), ...leafEdges("")],
     background,
   };
   const variant = {
     name: "Variant Pattern", root_node_id: roots[1], nodes: variantNodes,
-    edges: [edge("v1", "vR", "vA"), edge("v2", "vA", "vB"), edge("v3", "vB", "vC"), edge("v4", variantAttachment, "vX")],
+    edges: [...chainEdges("v", "vR", variantOrder), ...leafEdges("v")],
     background,
   };
   return {
@@ -57,26 +67,28 @@ function entries(project) {
   }));
 }
 
-test("calculates a one-step attachment shift", () => {
-  const project = makeProject("vB");
+test("counts one adjacent branching-order inversion once", () => {
+  const project = makeProject(["B", "A", "C", "D"]);
   const result = calculateNodeShift(project, entries(project));
   assert.equal(result.error, "");
   assert.equal(result.total, 1);
-  assert.equal(result.entries.find((entry) => entry.standard_node_id === "X")?.shift_value, 1);
+  assert.equal(result.entries.find((entry) => entry.standard_node_id === "A")?.shift_value, 1);
+  assert.equal(result.entries.find((entry) => entry.standard_node_id === "B")?.shift_value, 0);
+  assert.equal(result.entries.find((entry) => entry.standard_node_id === "C")?.shift_value, 0);
 });
 
-test("calculates multiple steps along the standard tree", () => {
-  const project = makeProject("vC");
+test("counts each crossed branching node as one step", () => {
+  const project = makeProject(["B", "C", "A", "D"]);
   const result = calculateNodeShift(project, entries(project));
   assert.equal(result.total, 2);
   assert.match(
-    result.entries.find((entry) => entry.standard_node_id === "X")?.calculation_message || "",
-    /2 steps/,
+    result.entries.find((entry) => entry.standard_node_id === "A")?.calculation_message || "",
+    /Crossed B, C: 2 steps/,
   );
 });
 
 test("refuses to guess without corresponding roots", () => {
-  const project = makeProject("vB", ["", ""]);
+  const project = makeProject(["B", "A", "C", "D"], ["", ""]);
   const result = calculateNodeShift(project, entries(project));
   assert.equal(result.total, 0);
   assert.match(result.error, /Select a root node/);
