@@ -24,6 +24,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { GraphCanvas, type GraphCanvasHandle } from "./components/GraphCanvas";
 import { ScoringDialog } from "./components/ScoringDialog";
 import { downloadDataUrl, downloadProject, downloadScoreCsv } from "./lib/downloads";
+import { projectFileNames } from "./lib/filenames";
 import {
   copyStandardToVariant,
   createProject,
@@ -193,8 +194,9 @@ export default function Home() {
       standardCanvas.current?.exportPng(),
       variantCanvas.current?.exportPng(),
     ]);
-    if (standard) downloadDataUrl(standard, "standard_pattern.png");
-    if (variant) window.setTimeout(() => downloadDataUrl(variant, "variant_pattern.png"), 250);
+    const names = projectFileNames(project.structure_name, project.type_name);
+    if (standard) downloadDataUrl(standard, `${names.standardBase}.png`);
+    if (variant) window.setTimeout(() => downloadDataUrl(variant, `${names.variantBase}.png`), 250);
     showNotice("PNG export started");
   };
 
@@ -217,6 +219,8 @@ export default function Home() {
       </header>
 
       <div className="command-bar" aria-label="Graph tools">
+        <button className="tool-button" title="Load background image" type="button" onClick={() => backgroundInput.current?.click()}><ImagePlus size={17} /><span>Background</span></button>
+        <div className="command-divider" />
         <div className="tool-group">
           {modeTools.map(({ mode: toolMode, label, icon: Icon }) => (
             <button
@@ -229,7 +233,6 @@ export default function Home() {
           ))}
         </div>
         <div className="command-divider" />
-        <button className="tool-button" title="Load background image" type="button" onClick={() => backgroundInput.current?.click()}><ImagePlus size={17} /><span>Background</span></button>
         <button className="tool-button" title="Copy standard to variant" type="button" onClick={copyGraph}><Copy size={17} /><span>Copy to Variant</span></button>
         <button className="tool-button" title="Open scoring table" type="button" onClick={openScoring}><TableProperties size={17} /><span>Scoring</span></button>
         <div className="command-spacer" />
@@ -277,6 +280,27 @@ export default function Home() {
         </div>
 
         <aside className="inspector">
+          <div className="project-export-section">
+            <label htmlFor="structure-name">Structure name</label>
+            <input
+              id="structure-name"
+              type="text"
+              maxLength={80}
+              value={project.structure_name}
+              placeholder="AorticArch"
+              onChange={(event) => setProject((current) => ({ ...current, structure_name: event.target.value }))}
+            />
+            <label htmlFor="type-name">Type</label>
+            <input
+              id="type-name"
+              type="text"
+              maxLength={80}
+              value={project.type_name}
+              placeholder="type3"
+              onChange={(event) => setProject((current) => ({ ...current, type_name: event.target.value }))}
+            />
+            <span>{projectFileNames(project.structure_name, project.type_name).variantBase}.json / .csv / .png<br />{projectFileNames(project.structure_name, project.type_name).standardBase}.png</span>
+          </div>
           <div className="inspector-heading"><span>CANVAS</span><strong>{activeModel.name}</strong></div>
           <div className="inspector-section">
             <label className="root-field" htmlFor="root-node">

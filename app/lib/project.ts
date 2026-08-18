@@ -31,6 +31,8 @@ export function createProject(): BranchTopoProject {
     app_name: "BranchTopo",
     app_version: "0.1.1-web",
     schema_version: "0.2",
+    structure_name: "",
+    type_name: "",
     standard_graph: emptyGraph("Standard Pattern"),
     variant_graph: emptyGraph("Variant Pattern"),
     score: {
@@ -147,6 +149,8 @@ export function normalizeProject(value: unknown, preserveBackgroundData = false)
     ...fallback,
     ...incoming,
     app_name: "BranchTopo",
+    structure_name: typeof incoming.structure_name === "string" ? incoming.structure_name : fallback.structure_name,
+    type_name: typeof incoming.type_name === "string" ? incoming.type_name : fallback.type_name,
     standard_graph: normalizeGraph(incoming.standard_graph, fallback.standard_graph),
     variant_graph: normalizeGraph(incoming.variant_graph, fallback.variant_graph),
     score: { ...fallback.score, ...(incoming.score || {}) },

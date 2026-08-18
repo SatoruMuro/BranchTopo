@@ -2,6 +2,8 @@
   "app_name": "BranchTopo",
   "app_version": "0.1.1-web",
   "schema_version": "0.2",
+  "structure_name": "ExampleArtery",
+  "type_name": "type2",
   "standard_graph": {
     "name": "Standard Pattern",
     "root_node_id": "standard_root",

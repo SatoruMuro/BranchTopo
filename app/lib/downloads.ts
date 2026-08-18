@@ -1,4 +1,5 @@
 import type { BranchTopoProject } from "../types";
+import { projectFileNames } from "./filenames";
 import { projectForDownload, syncScoreEntries, withUpdatedScore } from "./project";
 
 function downloadBlob(blob: Blob, filename: string): void {
@@ -12,7 +13,8 @@ function downloadBlob(blob: Blob, filename: string): void {
 
 export function downloadProject(project: BranchTopoProject): void {
   const body = JSON.stringify(projectForDownload(project), null, 2);
-  downloadBlob(new Blob([body], { type: "application/json" }), "branchtopo_project.json");
+  const { variantBase } = projectFileNames(project.structure_name, project.type_name);
+  downloadBlob(new Blob([body], { type: "application/json" }), `${variantBase}.json`);
 }
 
 const csvValue = (value: string | number): string => `"${String(value).replaceAll('"', '""')}"`;
@@ -34,7 +36,8 @@ export function downloadScoreCsv(project: BranchTopoProject): void {
     ["", "TOTAL", "", "", scored.score.total_node_shift, "", "", ""],
   ];
   const csv = rows.map((row) => row.map(csvValue).join(",")).join("\r\n");
-  downloadBlob(new Blob([`\ufeff${csv}`], { type: "text/csv;charset=utf-8" }), "node_shift_scores.csv");
+  const { variantBase } = projectFileNames(project.structure_name, project.type_name);
+  downloadBlob(new Blob([`\ufeff${csv}`], { type: "text/csv;charset=utf-8" }), `${variantBase}.csv`);
 }
 
 export function downloadDataUrl(dataUrl: string, filename: string): void {

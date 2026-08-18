@@ -63,6 +63,8 @@ export interface BranchTopoProject {
   app_name: "BranchTopo";
   app_version: string;
   schema_version: string;
+  structure_name: string;
+  type_name: string;
   standard_graph: GraphModel;
   variant_graph: GraphModel;
   score: ScoreModel;

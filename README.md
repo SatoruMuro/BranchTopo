@@ -17,6 +17,7 @@ All graph editing, scoring, and exports run in the browser. The app does not upl
 - JSON project import/export.
 - CSV scoring export.
 - PNG export for both canvases.
+- Reusable structure and type names applied consistently to JSON, CSV, and PNG filenames.
 
 BranchTopo does not extract or interpret graphs from images and does not perform automatic anatomical classification. It automatically calculates only the node-shift score after the user constructs both graphs and selects their corresponding root nodes. It does not calculate edge loss, edge gain, edge loss change, node fusion, or branch-order change scores.
 
@@ -59,6 +60,8 @@ The current working project, including loaded background image data, is autosave
 Explicit JSON exports remain the portable project backup. To keep v0.1 project files small, background image binary data is not embedded in exported JSON. The image filename and display settings are saved. A JSON project still loads when its background image is unavailable; load the image again to restore the background.
 
 Use the New project button in the upper-right file controls to clear both graphs, backgrounds, mappings, and scores after confirming. Export JSON first when the current project may be needed later.
+
+Set Structure name and Type in the right inspector before exporting. For example, `AorticArch` and `type3` produce `AorticArch_type3.json`, `AorticArch_type3.csv`, and `AorticArch_type3.png`. The standard canvas is exported as `AorticArch_standard.png`. Both names are stored in the project JSON.
 
 Clearing browser site data can remove the autosaved copy, so export JSON regularly.
 
