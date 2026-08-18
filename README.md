@@ -58,6 +58,8 @@ The current working project, including loaded background image data, is autosave
 
 Explicit JSON exports remain the portable project backup. To keep v0.1 project files small, background image binary data is not embedded in exported JSON. The image filename and display settings are saved. A JSON project still loads when its background image is unavailable; load the image again to restore the background.
 
+Use the New project button in the upper-right file controls to clear both graphs, backgrounds, mappings, and scores after confirming. Export JSON first when the current project may be needed later.
+
 Clearing browser site data can remove the autosaved copy, so export JSON regularly.
 
 ## Quality Checks

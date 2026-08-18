@@ -5,6 +5,7 @@ import {
   Copy,
   Download,
   FileDown,
+  FilePlus2,
   FolderOpen,
   Focus,
   GitBranch,
@@ -166,6 +167,15 @@ export default function Home() {
     showNotice("Standard graph copied to variant");
   };
 
+  const newProject = () => {
+    if (!window.confirm("Clear the current project and start a new one? Export JSON first if you need a backup.")) return;
+    setProject(createProject());
+    setActiveGraph("standard_graph");
+    setMode("select");
+    setScoreOpen(false);
+    showNotice("New project created");
+  };
+
   const loadProjectFile = async (file: File) => {
     try {
       const parsed = normalizeProject(JSON.parse(await file.text()));
@@ -223,6 +233,7 @@ export default function Home() {
         <button className="tool-button" title="Copy standard to variant" type="button" onClick={copyGraph}><Copy size={17} /><span>Copy to Variant</span></button>
         <button className="tool-button" title="Open scoring table" type="button" onClick={openScoring}><TableProperties size={17} /><span>Scoring</span></button>
         <div className="command-spacer" />
+        <button className="icon-button" title="New project" type="button" onClick={newProject}><FilePlus2 size={18} /></button>
         <button className="icon-button" title="Load project" type="button" onClick={() => projectInput.current?.click()}><FolderOpen size={18} /></button>
         <button className="icon-button" title="Save project JSON" type="button" onClick={() => { downloadProject(project); showNotice("Project JSON saved"); }}><Save size={18} /></button>
         <button className="icon-button" title="Export scoring CSV" type="button" onClick={() => { downloadScoreCsv(project); showNotice("CSV export started"); }}><FileDown size={18} /></button>
