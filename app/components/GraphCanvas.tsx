@@ -49,6 +49,9 @@ function GraphCanvasComponent(
   const [view, setView] = useState<ViewState>({ x: 320, y: 260, scale: 1 });
   const [pendingSource, setPendingSource] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const backgroundLockActive = Boolean(
+    graph.background.data_url && graph.background.visible && graph.background.locked,
+  );
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -232,6 +235,7 @@ function GraphCanvasComponent(
     onActivate();
     if (event.button === 1) {
       event.preventDefault();
+      if (backgroundLockActive) return;
       dragRef.current = {
         kind: "pan", pointerId: event.pointerId,
         startX: event.clientX, startY: event.clientY, originX: view.x, originY: view.y,
@@ -259,6 +263,10 @@ function GraphCanvasComponent(
   const pointerMove = (event: React.PointerEvent<SVGSVGElement>) => {
     const drag = dragRef.current;
     if (!drag || drag.pointerId !== event.pointerId) return;
+    if (backgroundLockActive && (drag.kind === "pan" || drag.kind === "background")) {
+      dragRef.current = null;
+      return;
+    }
     const dx = event.clientX - drag.startX;
     const dy = event.clientY - drag.startY;
     if (drag.kind === "pan") {
@@ -282,6 +290,7 @@ function GraphCanvasComponent(
 
   const zoom = (event: React.WheelEvent<SVGSVGElement>) => {
     event.preventDefault();
+    if (backgroundLockActive) return;
     const rect = event.currentTarget.getBoundingClientRect();
     const pointer = { x: event.clientX - rect.left, y: event.clientY - rect.top };
     const oldScale = view.scale;

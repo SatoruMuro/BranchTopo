@@ -46,7 +46,7 @@ Open `http://localhost:3000`.
 8. Enter node-shift values and optional notes.
 9. Save project JSON and export CSV or PNG files.
 
-Use the mouse wheel to zoom and the middle mouse button to pan. Nodes and labels keep a readable on-screen size while zooming.
+Use the mouse wheel to zoom and the middle mouse button to pan while the background is unlocked. Locking a visible background freezes the canvas view so those gestures cannot move the tracing reference. Nodes and labels keep a readable on-screen size while zooming.
 
 ## Local Storage and Project Files
 
