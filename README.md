@@ -18,6 +18,8 @@ All graph editing, scoring, and exports run in the browser. The app does not upl
 - CSV scoring export.
 - PNG export for both canvases.
 - Reusable structure and type names applied consistently to JSON, CSV, and PNG filenames.
+- Figure Studio for comparing multiple saved variants as a topology atlas or node-shift heatmap.
+- SVG and high-resolution PNG figure export.
 
 BranchTopo does not extract or interpret graphs from images and does not perform automatic anatomical classification. It automatically calculates only the node-shift score after the user constructs both graphs and selects their corresponding root nodes. It does not calculate edge loss, edge gain, edge loss change, node fusion, or branch-order change scores.
 
@@ -64,6 +66,16 @@ Use the New project button in the upper-right file controls to clear both graphs
 Set Structure name and Type in the right inspector before exporting. For example, `AorticArch` and `type3` produce `AorticArch_type3.json`, `AorticArch_type3.csv`, and `AorticArch_type3.png`. The standard canvas is exported as `AorticArch_standard.png`. Both names are stored in the project JSON.
 
 Clearing browser site data can remove the autosaved copy, so export JSON regularly.
+
+## Figure Studio
+
+Open Figure Studio from the editor toolbar. Select multiple BranchTopo JSON files with **Import JSON**. Files are grouped by their stored Structure name, and variants within the selected structure are ordered naturally by Type.
+
+The **Atlas** view shows one Standard topology followed by each variant topology. Shifted branch nodes are highlighted and annotated with the calculated step count. The column control changes the plate layout.
+
+The **Heatmap** view places variants in rows and scored branching nodes in columns. The final column shows the total node-shift score. Both views can be exported directly as editable SVG or high-resolution PNG. Figure Studio runs locally in the browser and does not upload imported JSON data.
+
+For consistent figures, use the same Standard Pattern for all JSON files in a structure group. Figure Studio displays a warning when the stored Standard topology differs between files.
 
 ## Quality Checks
 

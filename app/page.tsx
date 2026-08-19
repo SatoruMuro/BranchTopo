@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  ChartNoAxesCombined,
   CirclePlus,
   Copy,
   Download,
@@ -19,6 +20,7 @@ import {
   Trash2,
   Unlock,
 } from "lucide-react";
+import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import { GraphCanvas, type GraphCanvasHandle } from "./components/GraphCanvas";
@@ -235,6 +237,7 @@ export default function Home() {
         <div className="command-divider" />
         <button className="tool-button" title="Copy standard to variant" type="button" onClick={copyGraph}><Copy size={17} /><span>Copy to Variant</span></button>
         <button className="tool-button" title="Open scoring table" type="button" onClick={openScoring}><TableProperties size={17} /><span>Scoring</span></button>
+        <Link className="tool-button tool-link" title="Open Figure Studio" href="/figure-studio"><ChartNoAxesCombined size={17} /><span>Figure Studio</span></Link>
         <div className="command-spacer" />
         <button className="icon-button" title="New project" type="button" onClick={newProject}><FilePlus2 size={18} /></button>
         <button className="icon-button" title="Load project" type="button" onClick={() => projectInput.current?.click()}><FolderOpen size={18} /></button>

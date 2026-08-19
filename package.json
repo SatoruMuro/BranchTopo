@@ -13,6 +13,7 @@
     "lint": "eslint . --ignore-pattern dist --ignore-pattern .next"
   },
   "dependencies": {
+    "d3-hierarchy": "^3.1.2",
     "lucide-react": "^1.31.0",
     "react": "19.2.6",
     "react-dom": "19.2.6"
@@ -24,6 +25,7 @@
     "@next/eslint-plugin-next": "16.2.6",
     "@openai/sites-vite-plugin": "0.1.0",
     "@tailwindcss/postcss": "4.2.1",
+    "@types/d3-hierarchy": "^3.1.7",
     "@types/node": "22.19.19",
     "@types/react": "19.2.14",
     "@types/react-dom": "19.2.3",
