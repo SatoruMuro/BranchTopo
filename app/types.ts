@@ -1,4 +1,4 @@
-export type EditMode = "select" | "add_node" | "add_edge" | "delete" | "rename";
+export type EditMode = "select" | "move_branch" | "add_node" | "add_edge" | "delete" | "rename";
 export type GraphKey = "standard_graph" | "variant_graph";
 
 export interface BackgroundImageModel {

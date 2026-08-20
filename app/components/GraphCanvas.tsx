@@ -11,7 +11,8 @@ import {
 } from "react";
 import { Focus, ImageOff } from "lucide-react";
 
-import type { EditMode, GraphKey, GraphModel, NodeModel } from "../types";
+import type { EdgeModel, EditMode, GraphKey, GraphModel, NodeModel } from "../types";
+import { getBranchMoveContext, getBranchMovePlan, moveBranchPoint } from "../lib/branchMove";
 import { newId } from "../lib/project";
 
 export interface GraphCanvasHandle {
@@ -26,9 +27,12 @@ interface GraphCanvasProps {
   active: boolean;
   onActivate: () => void;
   onChange: (graph: GraphModel) => void;
+  onNotice: (message: string) => void;
 }
 
 interface ViewState { x: number; y: number; scale: number }
+interface BranchMoveState { nodeId: string; continuationEdgeId: string }
+interface BranchPreview { edgeId: string; x: number; y: number }
 type DragState =
   | { kind: "node"; id: string; pointerId: number; startX: number; startY: number; originX: number; originY: number }
   | { kind: "background"; pointerId: number; startX: number; startY: number; originX: number; originY: number }
@@ -38,7 +42,7 @@ const MIN_SCALE = 0.12;
 const MAX_SCALE = 8;
 
 function GraphCanvasComponent(
-  { graph, graphKey, mode, active, onActivate, onChange }: GraphCanvasProps,
+  { graph, graphKey, mode, active, onActivate, onChange, onNotice }: GraphCanvasProps,
   ref: React.ForwardedRef<GraphCanvasHandle>,
 ) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -49,6 +53,9 @@ function GraphCanvasComponent(
   const [view, setView] = useState<ViewState>({ x: 320, y: 260, scale: 1 });
   const [pendingSource, setPendingSource] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [branchMove, setBranchMove] = useState<BranchMoveState>({ nodeId: "", continuationEdgeId: "" });
+  const [branchPreview, setBranchPreview] = useState<BranchPreview | null>(null);
+  const [branchError, setBranchError] = useState("");
   const backgroundLockActive = Boolean(
     graph.background.data_url && graph.background.visible && graph.background.locked,
   );
@@ -69,6 +76,36 @@ function GraphCanvasComponent(
     const frame = requestAnimationFrame(() => setPendingSource(null));
     return () => cancelAnimationFrame(frame);
   }, [mode]);
+
+  const resetBranchMove = useCallback(() => {
+    setBranchMove({ nodeId: "", continuationEdgeId: "" });
+    setBranchPreview(null);
+    setBranchError("");
+    setSelectedId(null);
+  }, []);
+
+  useEffect(() => {
+    const frame = requestAnimationFrame(resetBranchMove);
+    return () => cancelAnimationFrame(frame);
+  }, [graphKey, mode, resetBranchMove]);
+
+  useEffect(() => {
+    if (mode !== "move_branch") return;
+    const cancel = (event: KeyboardEvent) => {
+      if (event.key === "Escape") resetBranchMove();
+    };
+    window.addEventListener("keydown", cancel);
+    return () => window.removeEventListener("keydown", cancel);
+  }, [mode, resetBranchMove]);
+
+  const branchContext = useMemo(() => branchMove.nodeId
+    ? getBranchMoveContext(graph, branchMove.nodeId)
+    : null,
+  [branchMove.nodeId, graph]);
+  const branchPlan = useMemo(() => branchMove.nodeId && branchMove.continuationEdgeId
+    ? getBranchMovePlan(graph, branchMove.nodeId, branchMove.continuationEdgeId)
+    : null,
+  [branchMove.continuationEdgeId, branchMove.nodeId, graph]);
 
   const bounds = useMemo(() => {
     if (graph.background.data_url && graph.background.width > 0 && graph.background.height > 0) {
@@ -151,6 +188,20 @@ function GraphCanvasComponent(
     };
   };
 
+  const pointOnEdge = (edge: EdgeModel, clientX: number, clientY: number) => {
+    const point = worldPoint(clientX, clientY);
+    const source = graph.nodes.find((node) => node.id === edge.source);
+    const target = graph.nodes.find((node) => node.id === edge.target);
+    if (!point || !source || !target) return null;
+    const dx = target.x - source.x;
+    const dy = target.y - source.y;
+    const lengthSquared = dx * dx + dy * dy;
+    const ratio = lengthSquared
+      ? Math.max(0, Math.min(1, ((point.x - source.x) * dx + (point.y - source.y) * dy) / lengthSquared))
+      : 0;
+    return { x: source.x + dx * ratio, y: source.y + dy * ratio };
+  };
+
   const addNode = (clientX: number, clientY: number) => {
     const point = worldPoint(clientX, clientY);
     if (!point) return;
@@ -170,6 +221,23 @@ function GraphCanvasComponent(
     if (event.button === 1) return;
     event.stopPropagation();
     onActivate();
+    if (mode === "move_branch") {
+      if (graphKey !== "variant_graph") {
+        setBranchError("Move Branch Point is available in Variant Pattern.");
+        return;
+      }
+      const context = getBranchMoveContext(graph, node.id);
+      if (context.error) {
+        setBranchError(context.error);
+        setSelectedId(null);
+        return;
+      }
+      setBranchMove({ nodeId: node.id, continuationEdgeId: "" });
+      setBranchPreview(null);
+      setBranchError("");
+      setSelectedId(node.id);
+      return;
+    }
     if (mode === "add_edge") {
       if (!pendingSource) {
         setPendingSource(node.id);
@@ -214,21 +282,76 @@ function GraphCanvasComponent(
     svgRef.current?.setPointerCapture(event.pointerId);
   };
 
-  const edgeAction = (edgeId: string, event: React.PointerEvent<SVGLineElement>) => {
+  const edgeAction = (edge: EdgeModel, event: React.PointerEvent<SVGLineElement>) => {
     if (event.button === 1) return;
     event.stopPropagation();
     onActivate();
+    if (mode === "move_branch") {
+      if (graphKey !== "variant_graph") {
+        setBranchError("Move Branch Point is available in Variant Pattern.");
+        return;
+      }
+      if (!branchMove.nodeId || !branchContext) {
+        setBranchError("Select a branch point first.");
+        return;
+      }
+      if (!branchMove.continuationEdgeId) {
+        if (!branchContext.continuationEdgeIds.includes(edge.id)) {
+          setBranchError("Select one of the orange distal edges.");
+          return;
+        }
+        const plan = getBranchMovePlan(graph, branchMove.nodeId, edge.id);
+        if (plan.error) {
+          setBranchError(plan.error);
+          return;
+        }
+        setBranchMove((current) => ({ ...current, continuationEdgeId: edge.id }));
+        setBranchPreview(null);
+        setBranchError("");
+        return;
+      }
+      if (!branchPlan?.eligibleDestinationEdgeIds.includes(edge.id)) {
+        setBranchError("Select one of the green destination edges.");
+        return;
+      }
+      const point = pointOnEdge(edge, event.clientX, event.clientY);
+      if (!point) return;
+      try {
+        const movedLabel = graph.nodes.find((node) => node.id === branchMove.nodeId)?.label || "Branch point";
+        const next = moveBranchPoint(
+          graph,
+          branchMove.nodeId,
+          branchMove.continuationEdgeId,
+          edge.id,
+          point,
+        );
+        resetBranchMove();
+        onChange(next);
+        onNotice(`${movedLabel} moved; node-shift recalculated`);
+      } catch (error) {
+        setBranchError(error instanceof Error ? error.message : "Could not move branch point.");
+      }
+      return;
+    }
     if (mode === "delete") {
-      onChange({ ...graph, edges: graph.edges.filter((edge) => edge.id !== edgeId) });
+      onChange({ ...graph, edges: graph.edges.filter((item) => item.id !== edge.id) });
       setSelectedId(null);
     } else if (mode === "rename") {
-      const edge = graph.edges.find((item) => item.id === edgeId);
-      if (!edge) return;
       const label = window.prompt("Edge label", edge.label);
-      if (label !== null) onChange({ ...graph, edges: graph.edges.map((item) => item.id === edgeId ? { ...item, label: label.trim() } : item) });
+      if (label !== null) onChange({ ...graph, edges: graph.edges.map((item) => item.id === edge.id ? { ...item, label: label.trim() } : item) });
     } else if (mode === "select") {
-      setSelectedId(edgeId);
+      setSelectedId(edge.id);
     }
+  };
+
+  const edgePreview = (edge: EdgeModel, event: React.PointerEvent<SVGLineElement>) => {
+    if (
+      mode !== "move_branch"
+      || graphKey !== "variant_graph"
+      || !branchPlan?.eligibleDestinationEdgeIds.includes(edge.id)
+    ) return;
+    const point = pointOnEdge(edge, event.clientX, event.clientY);
+    if (point) setBranchPreview({ edgeId: edge.id, ...point });
   };
 
   const rootPointerDown = (event: React.PointerEvent<SVGSVGElement>) => {
@@ -299,6 +422,49 @@ function GraphCanvasComponent(
     setView({ x: pointer.x - world.x * scale, y: pointer.y - world.y * scale, scale });
   };
 
+  const branchEdgeRole = (edgeId: string) => {
+    if (mode !== "move_branch" || graphKey !== "variant_graph" || !branchContext) return "";
+    if (edgeId === branchContext.parentEdgeId) return "cut";
+    if (!branchMove.continuationEdgeId && branchContext.continuationEdgeIds.includes(edgeId)) return "candidate";
+    if (edgeId === branchMove.continuationEdgeId) return "cut";
+    if (branchPlan?.retainedEdgeIds.includes(edgeId)) return "retained";
+    if (branchPlan?.eligibleDestinationEdgeIds.includes(edgeId)) return "destination";
+    return "";
+  };
+
+  const previewGeometry = (() => {
+    if (!branchPreview || !branchPlan) return null;
+    const destination = graph.edges.find((edge) => edge.id === branchPreview.edgeId);
+    const parentEdge = graph.edges.find((edge) => edge.id === branchPlan.parentEdgeId);
+    const continuation = graph.edges.find((edge) => edge.id === branchPlan.continuationEdgeId);
+    if (!destination || !parentEdge || !continuation) return null;
+    const neighbor = (edge: EdgeModel) => graph.nodes.find((node) =>
+      node.id === (edge.source === branchPlan.nodeId ? edge.target : edge.source),
+    );
+    const parentNeighbor = neighbor(parentEdge);
+    const continuationNeighbor = neighbor(continuation);
+    const destinationSource = graph.nodes.find((node) => node.id === destination.source);
+    const destinationTarget = graph.nodes.find((node) => node.id === destination.target);
+    if (!parentNeighbor || !continuationNeighbor || !destinationSource || !destinationTarget) return null;
+    const retainedNeighbors = branchPlan.retainedEdgeIds.flatMap((edgeId) => {
+      const edge = graph.edges.find((item) => item.id === edgeId);
+      const node = edge ? neighbor(edge) : null;
+      return node ? [node] : [];
+    });
+    return { parentNeighbor, continuationNeighbor, destinationSource, destinationTarget, retainedNeighbors };
+  })();
+
+  const branchInstruction = graphKey !== "variant_graph"
+    ? "Move Branch Point is available in Variant Pattern."
+    : branchError
+      || (!graph.root_node_id
+        ? "Select the Variant root node in the inspector."
+        : !branchMove.nodeId
+          ? "1  Select a branch point"
+          : !branchMove.continuationEdgeId
+            ? "2  Select the orange distal continuation edge"
+            : "3  Click a green destination edge");
+
   return (
     <section className={active ? "canvas-panel active-canvas" : "canvas-panel"} data-testid={`${graphKey}-canvas`}>
       <div className="canvas-heading">
@@ -345,22 +511,34 @@ function GraphCanvasComponent(
               const target = graph.nodes.find((node) => node.id === edge.target);
               if (!source || !target) return null;
               const selected = selectedId === edge.id;
+              const role = branchEdgeRole(edge.id);
+              const roleStroke = role === "cut" ? "#d94841"
+                : role === "candidate" ? "#d97706"
+                  : role === "retained" ? "#0891b2"
+                    : role === "destination" ? "#2e8b57"
+                      : "";
               return (
-                <g key={edge.id}>
+                <g key={edge.id} data-edge-id={edge.id}>
                   <line
                     x1={source.x} y1={source.y} x2={target.x} y2={target.y}
-                    stroke={selected ? "#d97706" : "#243b53"}
-                    strokeWidth={selected ? 4 : 3}
+                    stroke={roleStroke || (selected ? "#d97706" : "#243b53")}
+                    strokeWidth={role ? 4 : selected ? 4 : 3}
+                    strokeDasharray={role === "cut" || role === "candidate" ? "7 5" : undefined}
                     vectorEffect="non-scaling-stroke"
                     className="graph-edge"
-                    onPointerDown={(event) => edgeAction(edge.id, event)}
+                    onPointerDown={(event) => edgeAction(edge, event)}
                   />
                   <line
                     x1={source.x} y1={source.y} x2={target.x} y2={target.y}
                     stroke="transparent"
                     strokeWidth={16 / view.scale}
                     className="edge-hit-area"
-                    onPointerDown={(event) => edgeAction(edge.id, event)}
+                    onPointerDown={(event) => edgeAction(edge, event)}
+                    onPointerMove={(event) => edgePreview(edge, event)}
+                    onPointerLeave={() => {
+                      if (branchPreview?.edgeId === edge.id) setBranchPreview(null);
+                    }}
+                    style={{ cursor: role === "destination" ? "crosshair" : "pointer" }}
                   />
                   {edge.label && (
                     <text
@@ -378,12 +556,33 @@ function GraphCanvasComponent(
                 </g>
               );
             })}
+            {previewGeometry && branchPreview && (
+              <g pointerEvents="none" opacity={0.9}>
+                <line
+                  x1={previewGeometry.parentNeighbor.x}
+                  y1={previewGeometry.parentNeighbor.y}
+                  x2={previewGeometry.continuationNeighbor.x}
+                  y2={previewGeometry.continuationNeighbor.y}
+                  stroke="#d94841"
+                  strokeWidth={3}
+                  strokeDasharray="7 5"
+                  vectorEffect="non-scaling-stroke"
+                />
+                <line x1={previewGeometry.destinationSource.x} y1={previewGeometry.destinationSource.y} x2={branchPreview.x} y2={branchPreview.y} stroke="#2e8b57" strokeWidth={3} strokeDasharray="6 4" vectorEffect="non-scaling-stroke" />
+                <line x1={branchPreview.x} y1={branchPreview.y} x2={previewGeometry.destinationTarget.x} y2={previewGeometry.destinationTarget.y} stroke="#2e8b57" strokeWidth={3} strokeDasharray="6 4" vectorEffect="non-scaling-stroke" />
+                {previewGeometry.retainedNeighbors.map((node) => (
+                  <line key={node.id} x1={branchPreview.x} y1={branchPreview.y} x2={node.x} y2={node.y} stroke="#0891b2" strokeWidth={3} strokeDasharray="6 4" vectorEffect="non-scaling-stroke" />
+                ))}
+                <circle r={11 / view.scale} cx={branchPreview.x} cy={branchPreview.y} fill="#fff" stroke="#2e8b57" strokeWidth={3 / view.scale} />
+              </g>
+            )}
             {graph.nodes.map((node) => {
               const selected = selectedId === node.id || pendingSource === node.id;
               const rootNode = graph.root_node_id === node.id;
               return (
                 <g
                   key={node.id}
+                  data-node-id={node.id}
                   transform={`translate(${node.x} ${node.y})`}
                   className="graph-node"
                   onPointerDown={(event) => nodeAction(node, event)}
@@ -421,6 +620,12 @@ function GraphCanvasComponent(
           </g>
         </svg>
         {!graph.background.data_url && graph.nodes.length === 0 && <div className="canvas-empty-copy">Empty canvas</div>}
+        {mode === "move_branch" && (graphKey === "variant_graph" || active) && (
+          <div className={branchError ? "branch-move-guide error" : "branch-move-guide"}>
+            <div><span>MOVE BRANCH POINT</span><strong>{branchInstruction}</strong></div>
+            {branchMove.nodeId && <button type="button" onClick={resetBranchMove}>Cancel</button>}
+          </div>
+        )}
         <div className="zoom-readout">{Math.round(view.scale * 100)}%</div>
       </div>
     </section>

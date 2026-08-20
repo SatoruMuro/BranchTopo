@@ -10,6 +10,7 @@ import {
   FolderOpen,
   Focus,
   GitBranch,
+  GitCommitHorizontal,
   ImagePlus,
   Link2,
   Lock,
@@ -39,6 +40,7 @@ import type { BranchTopoProject, EditMode, GraphKey, GraphModel } from "./types"
 
 const modeTools: Array<{ mode: EditMode; label: string; icon: typeof MousePointer2 }> = [
   { mode: "select", label: "Select / Move", icon: MousePointer2 },
+  { mode: "move_branch", label: "Move Branch Point", icon: GitCommitHorizontal },
   { mode: "add_node", label: "Add Node", icon: CirclePlus },
   { mode: "add_edge", label: "Add Edge", icon: Link2 },
   { mode: "delete", label: "Delete", icon: Trash2 },
@@ -47,6 +49,7 @@ const modeTools: Array<{ mode: EditMode; label: string; icon: typeof MousePointe
 
 const modeLabel: Record<EditMode, string> = {
   select: "SELECT / MOVE",
+  move_branch: "MOVE BRANCH POINT",
   add_node: "ADD NODE",
   add_edge: "ADD EDGE",
   delete: "DELETE",
@@ -230,7 +233,13 @@ export default function Home() {
               key={toolMode}
               type="button"
               title={label}
-              onClick={() => setMode(toolMode)}
+              onClick={() => {
+                setMode(toolMode);
+                if (toolMode === "move_branch") {
+                  setActiveGraph("variant_graph");
+                  showNotice("Select a branch point in Variant Pattern");
+                }
+              }}
             ><Icon size={17} /><span>{label}</span></button>
           ))}
         </div>
@@ -270,6 +279,7 @@ export default function Home() {
             active={activeGraph === "standard_graph"}
             onActivate={() => setActiveGraph("standard_graph")}
             onChange={(graph) => updateGraph("standard_graph", graph)}
+            onNotice={showNotice}
           />
           <GraphCanvas
             ref={variantCanvas}
@@ -279,6 +289,7 @@ export default function Home() {
             active={activeGraph === "variant_graph"}
             onActivate={() => setActiveGraph("variant_graph")}
             onChange={(graph) => updateGraph("variant_graph", graph)}
+            onNotice={showNotice}
           />
         </div>
 

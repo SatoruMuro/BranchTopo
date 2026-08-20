@@ -57,6 +57,14 @@ button:disabled, input:disabled, select:disabled { cursor: not-allowed; opacity:
 .canvas-svg { display: block; user-select: none; }
 .graph-node, .graph-edge, .edge-hit-area { cursor: pointer; }
 .canvas-empty-copy { pointer-events: none; position: absolute; left: 14px; bottom: 12px; color: #8a959e; font-size: 11px; }
+.branch-move-guide { position: absolute; z-index: 3; top: 10px; left: 10px; max-width: calc(100% - 20px); min-height: 45px; display: flex; align-items: center; gap: 14px; padding: 7px 8px 7px 10px; border: 1px solid #8fb9ad; border-radius: 5px; color: #173c35; background: rgba(245, 255, 251, .95); box-shadow: 0 2px 8px rgba(23, 55, 48, .12); }
+.branch-move-guide > div { min-width: 0; display: grid; gap: 3px; }
+.branch-move-guide span { color: #2e8b57; font-size: 8px; font-weight: 800; }
+.branch-move-guide strong { overflow: hidden; font-size: 10px; font-weight: 650; text-overflow: ellipsis; white-space: nowrap; }
+.branch-move-guide button { flex: 0 0 auto; height: 27px; padding: 0 9px; border: 1px solid #8fb9ad; border-radius: 4px; color: #244b43; background: #fff; cursor: pointer; font-size: 9px; }
+.branch-move-guide button:hover { background: #e7f5f0; }
+.branch-move-guide.error { border-color: #df9b91; color: #8e281f; background: rgba(255, 247, 245, .96); }
+.branch-move-guide.error span { color: var(--danger); }
 .zoom-readout { pointer-events: none; position: absolute; right: 8px; bottom: 7px; padding: 3px 5px; color: #5f6b75; background: rgba(255,255,255,.88); border: 1px solid #dce2e6; border-radius: 3px; font-size: 9px; }
 
 .inspector { min-height: 0; display: flex; flex-direction: column; background: #f7f9fa; border-left: 1px solid var(--line); }
