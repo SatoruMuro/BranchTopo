@@ -10,6 +10,7 @@ All graph editing, scoring, and exports run in the browser. The app does not upl
 - Background images with opacity, lock, positioning, zoom, and pan.
 - Add, move, rename, and delete nodes.
 - Move Branch Point workflow for shifting a Variant branching node along the rooted tree.
+- Undo and redo for graph edits, with drag movements grouped into one history step.
 - Add, rename, and delete edges.
 - Copy Standard Pattern to Variant Pattern while preserving origin references.
 - Rooted-tree validation and automatic node-shift calculation from graph connectivity.
@@ -56,6 +57,8 @@ Open `http://localhost:3000`.
 Automatic scoring requires each graph to be a connected tree without cycles. BranchTopo compares the ancestor order of corresponding non-terminal branching nodes. A node receives one step for each branching node that it crosses in the distal direction; passive parent changes in the crossed nodes and downstream nodes are not counted again. Unmapped nodes and ambiguous or invalid graphs are reported instead of being guessed.
 
 Move Branch Point is available only on the Variant Pattern and requires its root node to be selected. The root-side edge is chosen automatically. The selected continuation edge and root-side edge are replaced by a direct bypass edge, while the destination edge is split around the moved node. Branches not selected for bypass remain attached to the moved node. Destination edges that would create a cycle are disabled. Press Escape or use Cancel before the destination click to abandon the operation.
+
+Use the toolbar arrows or `Ctrl+Z` / `Cmd+Z` to undo graph edits. Redo is available with `Ctrl+Y`, `Ctrl+Shift+Z`, or `Cmd+Shift+Z`. Branch-point moves, node and edge creation or deletion, root changes, and Copy to Variant each use one history step. A dragged node or background is also grouped into one step instead of recording every pointer movement. Loading or creating a project clears the edit history.
 
 Use the mouse wheel to zoom and the middle mouse button to pan while the background is unlocked. Locking a visible background freezes the canvas view so those gestures cannot move the tracing reference. Nodes and labels keep a readable on-screen size while zooming.
 

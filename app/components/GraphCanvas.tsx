@@ -26,8 +26,10 @@ interface GraphCanvasProps {
   mode: EditMode;
   active: boolean;
   onActivate: () => void;
-  onChange: (graph: GraphModel) => void;
+  onChange: (graph: GraphModel, options?: { transient?: boolean }) => void;
   onNotice: (message: string) => void;
+  onHistoryStart: () => void;
+  onHistoryEnd: () => void;
 }
 
 interface ViewState { x: number; y: number; scale: number }
@@ -42,7 +44,17 @@ const MIN_SCALE = 0.12;
 const MAX_SCALE = 8;
 
 function GraphCanvasComponent(
-  { graph, graphKey, mode, active, onActivate, onChange, onNotice }: GraphCanvasProps,
+  {
+    graph,
+    graphKey,
+    mode,
+    active,
+    onActivate,
+    onChange,
+    onNotice,
+    onHistoryStart,
+    onHistoryEnd,
+  }: GraphCanvasProps,
   ref: React.ForwardedRef<GraphCanvasHandle>,
 ) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -275,6 +287,7 @@ function GraphCanvasComponent(
       return;
     }
     setSelectedId(node.id);
+    onHistoryStart();
     dragRef.current = {
       kind: "node", id: node.id, pointerId: event.pointerId,
       startX: event.clientX, startY: event.clientY, originX: node.x, originY: node.y,
@@ -375,6 +388,7 @@ function GraphCanvasComponent(
     if (event.button !== 0 || mode !== "select" || graph.background.locked) return;
     event.stopPropagation();
     onActivate();
+    onHistoryStart();
     dragRef.current = {
       kind: "background", pointerId: event.pointerId,
       startX: event.clientX, startY: event.clientY,
@@ -395,19 +409,26 @@ function GraphCanvasComponent(
     if (drag.kind === "pan") {
       setView((current) => ({ ...current, x: drag.originX + dx, y: drag.originY + dy }));
     } else if (drag.kind === "background") {
-      onChange({ ...graph, background: { ...graph.background, x: drag.originX + dx / view.scale, y: drag.originY + dy / view.scale } });
+      onChange(
+        { ...graph, background: { ...graph.background, x: drag.originX + dx / view.scale, y: drag.originY + dy / view.scale } },
+        { transient: true },
+      );
     } else {
       onChange({
         ...graph,
         nodes: graph.nodes.map((node) => node.id === drag.id
           ? { ...node, x: drag.originX + dx / view.scale, y: drag.originY + dy / view.scale }
           : node),
-      });
+      }, { transient: true });
     }
   };
 
   const pointerUp = (event: React.PointerEvent<SVGSVGElement>) => {
-    if (dragRef.current?.pointerId === event.pointerId) dragRef.current = null;
+    const drag = dragRef.current;
+    if (drag?.pointerId === event.pointerId) {
+      dragRef.current = null;
+      if (drag.kind === "node" || drag.kind === "background") onHistoryEnd();
+    }
     if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
   };
 

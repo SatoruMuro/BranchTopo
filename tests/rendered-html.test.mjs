@@ -20,6 +20,8 @@ test("renders BranchTopo without starter metadata", async () => {
   assert.match(html, /<title>BranchTopo<\/title>/i);
   assert.match(html, /Local-first anatomical branching graph editor/);
   assert.match(html, /Move Branch Point/);
+  assert.match(html, /Undo graph edit/);
+  assert.match(html, /Redo graph edit/);
   assert.match(html, /og\.png/);
   assert.doesNotMatch(html, /codex-preview|SkeletonPreview|Your site is taking shape/i);
 });

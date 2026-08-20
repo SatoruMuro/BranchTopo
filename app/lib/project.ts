@@ -29,7 +29,7 @@ const emptyGraph = (name: string): GraphModel => ({
 export function createProject(): BranchTopoProject {
   return {
     app_name: "BranchTopo",
-    app_version: "0.1.2-web",
+    app_version: "0.1.3-web",
     schema_version: "0.2",
     structure_name: "",
     type_name: "",

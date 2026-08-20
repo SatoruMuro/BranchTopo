@@ -16,13 +16,15 @@ import {
   Lock,
   MousePointer2,
   Pencil,
+  Redo2,
   Save,
   TableProperties,
   Trash2,
+  Undo2,
   Unlock,
 } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { GraphCanvas, type GraphCanvasHandle } from "./components/GraphCanvas";
 import { ScoringDialog } from "./components/ScoringDialog";
@@ -56,6 +58,9 @@ const modeLabel: Record<EditMode, string> = {
   rename: "RENAME",
 };
 
+type ProjectUpdater = BranchTopoProject | ((current: BranchTopoProject) => BranchTopoProject);
+const HISTORY_LIMIT = 50;
+
 export default function Home() {
   const [project, setProject] = useState<BranchTopoProject>(() => createProject());
   const [mode, setMode] = useState<EditMode>("select");
@@ -64,17 +69,63 @@ export default function Home() {
   const [hydrated, setHydrated] = useState(false);
   const [saveState, setSaveState] = useState<"saved" | "saving" | "error">("saved");
   const [notice, setNotice] = useState("Local project");
+  const [historyState, setHistoryState] = useState({ canUndo: false, canRedo: false });
   const backgroundInput = useRef<HTMLInputElement>(null);
   const projectInput = useRef<HTMLInputElement>(null);
   const standardCanvas = useRef<GraphCanvasHandle>(null);
   const variantCanvas = useRef<GraphCanvasHandle>(null);
+  const projectRef = useRef(project);
+  const historyRef = useRef<{ past: BranchTopoProject[]; future: BranchTopoProject[] }>({ past: [], future: [] });
+  const transactionRef = useRef<BranchTopoProject | null>(null);
+  const noticeTimerRef = useRef<number | null>(null);
+
+  const syncHistoryState = useCallback(() => {
+    setHistoryState({
+      canUndo: historyRef.current.past.length > 0,
+      canRedo: historyRef.current.future.length > 0,
+    });
+  }, []);
+
+  const installProject = useCallback((next: BranchTopoProject) => {
+    projectRef.current = next;
+    setProject(next);
+  }, []);
+
+  const recordHistory = useCallback((before: BranchTopoProject) => {
+    historyRef.current.past = [...historyRef.current.past, before].slice(-HISTORY_LIMIT);
+    historyRef.current.future = [];
+    syncHistoryState();
+  }, [syncHistoryState]);
+
+  const commitProject = useCallback((updater: ProjectUpdater) => {
+    const current = projectRef.current;
+    const next = typeof updater === "function" ? updater(current) : updater;
+    if (next === current) return;
+    recordHistory(current);
+    installProject(next);
+  }, [installProject, recordHistory]);
+
+  const replaceProject = useCallback((updater: ProjectUpdater) => {
+    const current = projectRef.current;
+    const next = typeof updater === "function" ? updater(current) : updater;
+    if (next === current) return;
+    historyRef.current.future = [];
+    syncHistoryState();
+    installProject(next);
+  }, [installProject, syncHistoryState]);
+
+  const clearHistory = useCallback(() => {
+    historyRef.current = { past: [], future: [] };
+    transactionRef.current = null;
+    syncHistoryState();
+  }, [syncHistoryState]);
 
   useEffect(() => {
     loadLocalProject()
-      .then((saved) => { if (saved) setProject(saved); })
+      .then((saved) => { if (saved) installProject(saved); })
       .catch(() => setSaveState("error"))
       .finally(() => setHydrated(true));
-  }, []);
+  }, [installProject]);
 
   useEffect(() => {
     if (!hydrated) return;
@@ -89,19 +140,31 @@ export default function Home() {
   const activeCanvas = activeGraph === "standard_graph" ? standardCanvas : variantCanvas;
   const total = project.score.node_shift_entries.reduce((sum, entry) => sum + entry.shift_value, 0);
 
-  const updateGraph = (key: GraphKey, graph: GraphModel) => {
-    setProject((current) => withUpdatedScore({ ...current, [key]: graph }));
+  const updateGraph = (key: GraphKey, graph: GraphModel, transient = false) => {
+    const update = (current: BranchTopoProject) => withUpdatedScore({ ...current, [key]: graph });
+    if (transient) installProject(update(projectRef.current));
+    else commitProject(update);
+  };
+
+  const beginGraphTransaction = () => {
+    if (!transactionRef.current) transactionRef.current = projectRef.current;
+  };
+
+  const endGraphTransaction = () => {
+    const before = transactionRef.current;
+    transactionRef.current = null;
+    if (before && before !== projectRef.current) recordHistory(before);
   };
 
   const updateActiveBackground = (patch: Partial<GraphModel["background"]>) => {
-    setProject((current) => {
+    replaceProject((current) => {
       const graph = current[activeGraph];
       return { ...current, [activeGraph]: { ...graph, background: { ...graph.background, ...patch } } };
     });
   };
 
   const updateActiveRoot = (rootNodeId: string) => {
-    setProject((current) => {
+    commitProject((current) => {
       const next: BranchTopoProject = {
         ...current,
         [activeGraph]: { ...current[activeGraph], root_node_id: rootNodeId },
@@ -118,10 +181,56 @@ export default function Home() {
     });
   };
 
-  const showNotice = (message: string) => {
+  const showNotice = useCallback((message: string) => {
+    if (noticeTimerRef.current) window.clearTimeout(noticeTimerRef.current);
     setNotice(message);
-    window.setTimeout(() => setNotice("Local project"), 2400);
-  };
+    noticeTimerRef.current = window.setTimeout(() => setNotice("Local project"), 2400);
+  }, []);
+
+  const undo = useCallback(() => {
+    const previous = historyRef.current.past.pop();
+    if (!previous) return;
+    historyRef.current.future = [
+      ...historyRef.current.future,
+      projectRef.current,
+    ].slice(-HISTORY_LIMIT);
+    transactionRef.current = null;
+    installProject(previous);
+    syncHistoryState();
+    showNotice("Undo");
+  }, [installProject, showNotice, syncHistoryState]);
+
+  const redo = useCallback(() => {
+    const next = historyRef.current.future.pop();
+    if (!next) return;
+    historyRef.current.past = [
+      ...historyRef.current.past,
+      projectRef.current,
+    ].slice(-HISTORY_LIMIT);
+    transactionRef.current = null;
+    installProject(next);
+    syncHistoryState();
+    showNotice("Redo");
+  }, [installProject, showNotice, syncHistoryState]);
+
+  useEffect(() => {
+    const handleHistoryKey = (event: KeyboardEvent) => {
+      if (!(event.ctrlKey || event.metaKey) || event.altKey) return;
+      const target = event.target as HTMLElement | null;
+      if (target?.matches("input, textarea, select, [contenteditable='true']")) return;
+      const key = event.key.toLowerCase();
+      if (key === "z") {
+        event.preventDefault();
+        if (event.shiftKey) redo();
+        else undo();
+      } else if (key === "y") {
+        event.preventDefault();
+        redo();
+      }
+    };
+    window.addEventListener("keydown", handleHistoryKey);
+    return () => window.removeEventListener("keydown", handleHistoryKey);
+  }, [redo, undo]);
 
   const loadBackground = (file: File) => {
     const reader = new FileReader();
@@ -129,7 +238,7 @@ export default function Home() {
       const dataUrl = String(reader.result || "");
       const image = new Image();
       image.onload = () => {
-        setProject((current) => {
+        commitProject((current) => {
           const graph = current[activeGraph];
           return {
             ...current,
@@ -159,7 +268,7 @@ export default function Home() {
   };
 
   const openScoring = () => {
-    setProject((current) => withUpdatedScore(current, syncScoreEntries(current)));
+    replaceProject((current) => withUpdatedScore(current, syncScoreEntries(current)));
     setScoreOpen(true);
   };
 
@@ -168,14 +277,15 @@ export default function Home() {
       (project.variant_graph.nodes.length || project.variant_graph.edges.length) &&
       !window.confirm("Replace the current variant graph with a copy of the standard graph?")
     ) return;
-    setProject((current) => copyStandardToVariant(current));
+    commitProject((current) => copyStandardToVariant(current));
     setActiveGraph("variant_graph");
     showNotice("Standard graph copied to variant");
   };
 
   const newProject = () => {
     if (!window.confirm("Clear the current project and start a new one? Export JSON first if you need a backup.")) return;
-    setProject(createProject());
+    installProject(createProject());
+    clearHistory();
     setActiveGraph("standard_graph");
     setMode("select");
     setScoreOpen(false);
@@ -185,7 +295,8 @@ export default function Home() {
   const loadProjectFile = async (file: File) => {
     try {
       const parsed = normalizeProject(JSON.parse(await file.text()));
-      setProject(parsed);
+      installProject(parsed);
+      clearHistory();
       setActiveGraph("standard_graph");
       setMode("select");
       showNotice("Project loaded");
@@ -248,6 +359,9 @@ export default function Home() {
         <button className="tool-button" title="Open scoring table" type="button" onClick={openScoring}><TableProperties size={17} /><span>Scoring</span></button>
         <Link className="tool-button tool-link" title="Open Figure Studio" href="/figure-studio"><ChartNoAxesCombined size={17} /><span>Figure Studio</span></Link>
         <div className="command-spacer" />
+        <button className="icon-button" title="Undo graph edit (Ctrl+Z)" type="button" disabled={!historyState.canUndo} onClick={undo}><Undo2 size={18} /></button>
+        <button className="icon-button" title="Redo graph edit (Ctrl+Y)" type="button" disabled={!historyState.canRedo} onClick={redo}><Redo2 size={18} /></button>
+        <div className="command-divider" />
         <button className="icon-button" title="New project" type="button" onClick={newProject}><FilePlus2 size={18} /></button>
         <button className="icon-button" title="Load project" type="button" onClick={() => projectInput.current?.click()}><FolderOpen size={18} /></button>
         <button className="icon-button" title="Save project JSON" type="button" onClick={() => { downloadProject(project); showNotice("Project JSON saved"); }}><Save size={18} /></button>
@@ -278,8 +392,10 @@ export default function Home() {
             mode={mode}
             active={activeGraph === "standard_graph"}
             onActivate={() => setActiveGraph("standard_graph")}
-            onChange={(graph) => updateGraph("standard_graph", graph)}
+            onChange={(graph, options) => updateGraph("standard_graph", graph, options?.transient)}
             onNotice={showNotice}
+            onHistoryStart={beginGraphTransaction}
+            onHistoryEnd={endGraphTransaction}
           />
           <GraphCanvas
             ref={variantCanvas}
@@ -288,8 +404,10 @@ export default function Home() {
             mode={mode}
             active={activeGraph === "variant_graph"}
             onActivate={() => setActiveGraph("variant_graph")}
-            onChange={(graph) => updateGraph("variant_graph", graph)}
+            onChange={(graph, options) => updateGraph("variant_graph", graph, options?.transient)}
             onNotice={showNotice}
+            onHistoryStart={beginGraphTransaction}
+            onHistoryEnd={endGraphTransaction}
           />
         </div>
 
@@ -302,7 +420,7 @@ export default function Home() {
               maxLength={80}
               value={project.structure_name}
               placeholder="AorticArch"
-              onChange={(event) => setProject((current) => ({ ...current, structure_name: event.target.value }))}
+              onChange={(event) => replaceProject((current) => ({ ...current, structure_name: event.target.value }))}
             />
             <label htmlFor="type-name">Type</label>
             <input
@@ -311,7 +429,7 @@ export default function Home() {
               maxLength={80}
               value={project.type_name}
               placeholder="type3"
-              onChange={(event) => setProject((current) => ({ ...current, type_name: event.target.value }))}
+              onChange={(event) => replaceProject((current) => ({ ...current, type_name: event.target.value }))}
             />
             <span>{projectFileNames(project.structure_name, project.type_name).variantBase}.json / .csv / .png<br />{projectFileNames(project.structure_name, project.type_name).standardBase}.png</span>
           </div>
@@ -362,7 +480,7 @@ export default function Home() {
         <span>{modeLabel[mode]}</span><span>{notice}</span><span>{activeModel.name}</span><span>Node-shift total: {total}</span>
       </footer>
 
-      {scoreOpen && <ScoringDialog project={project} onChange={setProject} onClose={() => setScoreOpen(false)} />}
+      {scoreOpen && <ScoringDialog project={project} onChange={replaceProject} onClose={() => setScoreOpen(false)} />}
     </main>
   );
 }
