@@ -91,3 +91,5 @@ npm.cmd run lint
 npm.cmd exec tsc -- --noEmit
 npm.cmd run build
 ```
+
+The same validation runs automatically in GitHub Actions for pushes to `main`, pull requests, and manual workflow runs.
