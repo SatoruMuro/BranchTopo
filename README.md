@@ -4,6 +4,11 @@ BranchTopo Web is a local-first browser application for constructing, editing, a
 
 All graph editing, scoring, and exports run in the browser. The app does not upload project data or reference images to an application server.
 
+## Open the Apps
+
+- [BranchTopo](https://branchtopo-local.satorum0.chatgpt.site/)
+- [BranchTopo Figure Studio](https://branchtopo-local.satorum0.chatgpt.site/figure-studio)
+
 ## v0.1 Scope
 
 - Side-by-side Standard Pattern and Variant Pattern canvases.
